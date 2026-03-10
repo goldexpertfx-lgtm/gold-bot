@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-GOLD BOT - PYTHON 3.14 COMPATIBLE
+GOLD BOT - FINAL WORKING VERSION
 """
 
+import asyncio
 import logging
 import time
 import re
@@ -182,6 +183,13 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     logger.info("Gold Bot Starting...")
     
+    # Create event loop explicitly
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
     app = Application.builder().token(BOT_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start_cmd))
@@ -190,7 +198,9 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
     
     logger.info("Bot running")
-    app.run_polling()
+    
+    # Run with explicit loop
+    app.run_polling(close_loop=False)
 
 if __name__ == "__main__":
     main()
