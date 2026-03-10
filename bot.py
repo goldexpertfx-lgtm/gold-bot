@@ -25,15 +25,15 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-BOT_TOKEN = "8284715892:AAHOugCMkrfFK0Ehd6WVlYgW5CfMSU9K-5M"  # Environment variable bhi use kar sakte hain
+BOT_TOKEN = "8284715892:AAHOugCMkrfFK0Ehd6WVlYgW5CfMSU9K-5M"
 CHANNEL_ID = -1003742118245
 ADMIN_ID = 5072932186
 
 # ================= API KEYS (FREE TIER) =================
 API_KEYS = {
-    "twelvedata": "9bab8ab434c04d848ef27aee36dd3a4f",  # Free
-    "goldapi": "goldapi-152a3asmlmlc131-io",           # Free
-    "metalsapi": "free",                                # No key needed
+    "twelvedata": "9bab8ab434c04d848ef27aee36dd3a4f",
+    "goldapi": "goldapi-152a3asmlmlc131-io",
+    "metalsapi": "free",
 }
 
 # ================= LOGGING =================
@@ -59,15 +59,10 @@ class MultiAPIPriceFetcher:
     """Tries multiple APIs in priority order, auto-failover"""
     
     API_SOURCES = [
-        # Priority 1: Direct Gold APIs
         ("goldapi", "fetch_goldapi"),
         ("twelvedata", "fetch_twelvedata"),
-        
-        # Priority 2: Financial Data Sites
         ("tradingview", "fetch_tradingview"),
         ("investing", "fetch_investing"),
-        
-        # Priority 3: Backup Sources
         ("kitco", "fetch_kitco"),
         ("metalsapi", "fetch_metalsapi"),
         ("forexfactory", "fetch_forexfactory"),
@@ -86,10 +81,7 @@ class MultiAPIPriceFetcher:
             )
         return self.session
     
-    # ============== API METHODS ==============
-    
     async def fetch_goldapi(self) -> Optional[float]:
-        """GoldAPI - Primary source"""
         try:
             url = "https://www.goldapi.io/api/XAU/USD"
             headers = {"x-access-token": API_KEYS["goldapi"]}
@@ -107,7 +99,6 @@ class MultiAPIPriceFetcher:
         return None
     
     async def fetch_twelvedata(self) -> Optional[float]:
-        """TwelveData - Secondary"""
         try:
             url = f"https://api.twelvedata.com/price?symbol=XAU/USD&apikey={API_KEYS['twelvedata']}"
             
@@ -124,7 +115,6 @@ class MultiAPIPriceFetcher:
         return None
     
     async def fetch_tradingview(self) -> Optional[float]:
-        """TradingView Web Scraping"""
         try:
             urls = [
                 "https://www.tradingview.com/symbols/XAUUSD/",
@@ -163,7 +153,6 @@ class MultiAPIPriceFetcher:
         return None
     
     async def fetch_investing(self) -> Optional[float]:
-        """Investing.com"""
         try:
             urls = [
                 "https://www.investing.com/currencies/xau-usd",
@@ -202,7 +191,6 @@ class MultiAPIPriceFetcher:
         return None
     
     async def fetch_kitco(self) -> Optional[float]:
-        """Kitco Gold"""
         try:
             url = "https://www.kitco.com/charts/gold.html"
             
@@ -229,7 +217,6 @@ class MultiAPIPriceFetcher:
         return None
     
     async def fetch_metalsapi(self) -> Optional[float]:
-        """Metals-API (Free tier)"""
         try:
             url = f"https://metals-api.com/api/latest?access_key={API_KEYS['metalsapi']}&base=USD&symbols=XAU"
             
@@ -238,7 +225,6 @@ class MultiAPIPriceFetcher:
                 if response.status == 200:
                     data = await response.json()
                     if "rates" in data and "XAU" in data["rates"]:
-                        # Convert to USD per ounce
                         price = 1 / float(data["rates"]["XAU"])
                         if 1800 < price < 10000:
                             return round(price, 2)
@@ -247,7 +233,6 @@ class MultiAPIPriceFetcher:
         return None
     
     async def fetch_forexfactory(self) -> Optional[float]:
-        """ForexFactory Backup"""
         try:
             url = "https://www.forexfactory.com/calendar"
             
@@ -264,31 +249,21 @@ class MultiAPIPriceFetcher:
             logger.warning(f"ForexFactory failed: {e}")
         return None
     
-    # ============== MASTER FETCH ==============
-    
     async def get_price(self) -> Tuple[Optional[float], Optional[str]]:
-        """
-        Try all APIs in order, return first success
-        Returns: (price, source_name)
-        """
         global last_api_used, api_fail_count, api_last_success
         
         for api_name, method_name in self.API_SOURCES:
             try:
-                # Skip if API failed too many times recently
                 if api_fail_count.get(api_name, 0) > 5:
-                    # Reset after 10 minutes
                     if time.time() - api_last_success.get(api_name, 0) > 600:
                         api_fail_count[api_name] = 0
                     else:
                         continue
                 
-                # Call the fetch method
                 fetch_method = getattr(self, method_name)
                 price = await fetch_method()
                 
                 if price and 1800 < price < 10000:
-                    # Success!
                     last_api_used = api_name
                     api_last_success[api_name] = time.time()
                     api_fail_count[api_name] = 0
@@ -296,7 +271,6 @@ class MultiAPIPriceFetcher:
                     logger.info(f"✅ Price from {api_name}: {price}")
                     return price, api_name
                 
-                # Failed this time
                 api_fail_count[api_name] = api_fail_count.get(api_name, 0) + 1
                 
             except Exception as e:
@@ -304,10 +278,8 @@ class MultiAPIPriceFetcher:
                 api_fail_count[api_name] = api_fail_count.get(api_name, 0) + 1
                 continue
             
-            # Small delay between APIs
             await asyncio.sleep(0.5)
         
-        # All failed
         logger.error("❌ All APIs failed!")
         return None, None
     
@@ -315,13 +287,11 @@ class MultiAPIPriceFetcher:
         if self.session and not self.session.closed:
             await self.session.close()
 
-# Global fetcher instance
 price_fetcher = MultiAPIPriceFetcher()
 
 # ================= COMMANDS =================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start command"""
     await update.message.reply_text(
         "✅ <b>🏆 GOLD BOT - MULTI-API MODE</b>\n\n"
         f"<b>Active APIs:</b> {len([k for k in API_KEYS.keys()])}\n"
@@ -337,7 +307,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def check_apis(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Check all API statuses"""
     msg = "📊 <b>API Status:</b>\n\n"
     
     for name in API_KEYS.keys():
@@ -351,7 +320,6 @@ async def check_apis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode="HTML")
 
 async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Check current price from all APIs"""
     await update.message.reply_text("⏳ Fetching from multiple sources...")
     
     price, source = await price_fetcher.get_price()
@@ -371,7 +339,6 @@ async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Check bot status"""
     trade_status = "🟢 ACTIVE" if active_trade else "⚪ NO TRADE"
     
     await update.message.reply_text(
@@ -387,7 +354,6 @@ async def check_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= AUTO JOIN =================
 
 async def approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Instant auto-approve"""
     try:
         user = update.chat_join_request.from_user
         chat = update.chat_join_request.chat
@@ -397,7 +363,6 @@ async def approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_id=user.id,
         )
         
-        # Welcome message
         try:
             await context.bot.send_message(
                 user.id,
@@ -426,7 +391,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text_upper = text.upper()
     
-    # Commands
     if text_upper == "/START":
         await start(update, context)
         return
@@ -443,7 +407,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await check_status(update, context)
         return
     
-    # Parse trade
     trade_type = None
     if text_upper.startswith("BUY"):
         trade_type = "BUY"
@@ -453,7 +416,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not trade_type:
         return
     
-    # Extract manual price
     numbers = re.findall(r'\d{4}\.?\d{0,2}', text)
     manual_price = None
     if numbers:
@@ -464,12 +426,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
-    # Get price
     if manual_price:
         price = manual_price
         logger.info(f"Manual price: {price}")
     else:
-        # Try APIs
         price, source = await price_fetcher.get_price()
         logger.info(f"API price: {price} from {source}")
     
@@ -486,7 +446,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     entry = round(price, 2)
     current_price = entry
     
-    # Stop old trade
     if active_trade:
         old_id = active_trade.get("trade_id")
         try:
@@ -501,7 +460,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         active_trade = None
         await asyncio.sleep(1)
     
-    # Calculate levels
     if trade_type == "BUY":
         tp1 = round(entry + 5, 2)
         tp2 = round(entry + 10, 2)
@@ -511,7 +469,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tp2 = round(entry - 10, 2)
         sl = round(entry + 10, 2)
     
-    # Create trade
     trade_counter += 1
     active_trade = {
         "trade_id": trade_counter,
@@ -528,7 +485,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     last_sent_price = entry
     
-    # Send signal
     try:
         msg = await context.bot.send_message(
             CHANNEL_ID,
@@ -548,7 +504,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_to_message_id=msg_id
         )
         
-        # Start tracker
         if not tracking_running:
             tracking_running = True
             asyncio.create_task(tracker_multi_api(context))
@@ -567,7 +522,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error: {e}")
         active_trade = None
 
-# ================= MULTI-API TRACKER =================
+# ================= MULTI-API TRACKER (FIXED) =================
 
 async def tracker_multi_api(context: ContextTypes.DEFAULT_TYPE):
     """24/7 tracker with multi-API failover"""
@@ -577,8 +532,39 @@ async def tracker_multi_api(context: ContextTypes.DEFAULT_TYPE):
     
     while True:
         try:
+            if not active_trade:
+                await asyncio.sleep(5)
+                continue
             
-if not active_trade:           
-    await asyncio.sleep(5)     
-    continue                   
-
+            price, source = await price_fetcher.get_price()
+            
+            if not price:
+                logger.warning("No price available, skipping check")
+                await asyncio.sleep(5)
+                continue
+            
+            current_price = price
+            
+            entry = active_trade["entry"]
+            trade_type = active_trade["type"]
+            tp1 = active_trade["tp1"]
+            tp2 = active_trade["tp2"]
+            sl = active_trade["sl"]
+            
+            # Check TP1
+            if not active_trade["tp1_hit"]:
+                if (trade_type == "BUY" and price >= tp1) or (trade_type == "SELL" and price <= tp1):
+                    active_trade["tp1_hit"] = True
+                    try:
+                        await context.bot.send_message(
+                            CHANNEL_ID,
+                            f"🎯 <b>TP1 HIT!</b>\nPrice: {price}\nMove SL to entry!",
+                            parse_mode="HTML",
+                            reply_to_message_id=active_trade["message_id"]
+                        )
+                    except Exception as e:
+                        logger.error(f"TP1 notify error: {e}")
+            
+            # Check TP2
+            if not active_trade["tp2_hit"]:
+                if (trade_type == "BUY" and price >= tp2) or (trade_type == "SELL" and price <= tp2
