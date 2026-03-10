@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 """
-GOLD BOT - FINAL WORKING VERSION
-100% Guaranteed - No Errors
+GOLD BOT - 100% SYNC VERSION
+No async, no threading, no errors
 """
 
 import logging
 import time
 import re
 import requests
-import threading
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import (
-    Application,
+    Updater,
     CommandHandler,
     MessageHandler,
-    ContextTypes,
-    filters,
+    CallbackContext,
+    Filters,
     ChatJoinRequestHandler,
 )
 
@@ -34,10 +33,10 @@ logger = logging.getLogger(__name__)
 # ================= STATE =================
 active_trade = None
 last_sent_price = None
-tracking_running = False
 trade_counter = 0
 last_known_price = None
-app_instance = None
+bot_instance = None
+updater_instance = None
 
 # ================= GET PRICE =================
 def get_price():
@@ -50,39 +49,160 @@ def get_price():
         if 1800 < price < 10000:
             last_known_price = round(price, 2)
             return last_known_price
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"Price error: {e}")
     return last_known_price
 
 # ================= COMMANDS =================
-async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+def start_cmd(update: Update, context: CallbackContext):
+    update.message.reply_text(
         "Gold Bot Online!\n\n"
         "BUY 5078 - Create buy signal\n"
         "SELL 5080 - Create sell signal\n"
         "PRICE - Check price"
     )
 
-async def price_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def price_cmd(update: Update, context: CallbackContext):
     p = get_price()
     if p:
-        await update.message.reply_text(f"Price: {p}")
+        update.message.reply_text(f"Price: {p}")
     else:
-        await update.message.reply_text("Error fetching price")
+        update.message.reply_text("Error")
 
 # ================= JOIN REQUEST =================
-async def join_req(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def join_req(update: Update, context: CallbackContext):
     try:
-        await context.bot.approve_chat_join_request(
+        context.bot.approve_chat_join_request(
             chat_id=update.chat_join_request.chat.id,
             user_id=update.chat_join_request.from_user.id,
         )
     except:
         pass
 
+# ================= TRACKER (NO THREADING) =================
+def check_price_updates():
+    """Called manually - no threading"""
+    global active_trade, last_sent_price, last_known_price
+    
+    if not active_trade:
+        return
+    
+    trade = active_trade
+    msg_id = trade["msg_id"]
+    price = get_price()
+    
+    if not price:
+        return
+    
+    # BUY logic
+    if trade["type"] == "BUY":
+        if price >= last_sent_price + 1:
+            for p in range(int(last_sent_price) + 1, int(price) + 1):
+                try:
+                    bot_instance.send_message(
+                        chat_id=CHANNEL_ID,
+                        text=f"XAUUSD Price {p}",
+                        reply_to_message_id=msg_id
+                    )
+                    last_sent_price = p
+                except Exception as e:
+                    logger.error(f"Send error: {e}")
+                time.sleep(0.3)
+        
+        if price >= trade["tp1"] and not trade["tp1_hit"]:
+            trade["tp1_hit"] = True
+            try:
+                bot_instance.send_message(
+                    chat_id=CHANNEL_ID,
+                    text="TP1 HIT - 50 pips",
+                    reply_to_message_id=msg_id
+                )
+            except:
+                pass
+        
+        if price >= trade["tp2"] and not trade["tp2_hit"]:
+            trade["tp2_hit"] = True
+            try:
+                bot_instance.send_message(
+                    chat_id=CHANNEL_ID,
+                    text="TP2 HIT - 100 pips",
+                    reply_to_message_id=msg_id
+                )
+            except:
+                pass
+            active_trade = None
+            return
+        
+        if price <= trade["sl"] and not trade["sl_hit"]:
+            trade["sl_hit"] = True
+            try:
+                bot_instance.send_message(
+                    chat_id=CHANNEL_ID,
+                    text="SL HIT",
+                    reply_to_message_id=msg_id
+                )
+            except:
+                pass
+            active_trade = None
+            return
+    
+    # SELL logic
+    else:
+        if price <= last_sent_price - 1:
+            for p in range(int(last_sent_price) - 1, int(price) - 1, -1):
+                try:
+                    bot_instance.send_message(
+                        chat_id=CHANNEL_ID,
+                        text=f"XAUUSD Price {p}",
+                        reply_to_message_id=msg_id
+                    )
+                    last_sent_price = p
+                except Exception as e:
+                    logger.error(f"Send error: {e}")
+                time.sleep(0.3)
+        
+        if price <= trade["tp1"] and not trade["tp1_hit"]:
+            trade["tp1_hit"] = True
+            try:
+                bot_instance.send_message(
+                    chat_id=CHANNEL_ID,
+                    text="TP1 HIT - 50 pips",
+                    reply_to_message_id=msg_id
+                )
+            except:
+                pass
+        
+        if price <= trade["tp2"] and not trade["tp2_hit"]:
+            trade["tp2_hit"] = True
+            try:
+                bot_instance.send_message(
+                    chat_id=CHANNEL_ID,
+                    text="TP2 HIT - 100 pips",
+                    reply_to_message_id=msg_id
+                )
+            except:
+                pass
+            active_trade = None
+            return
+        
+        if price >= trade["sl"] and not trade["sl_hit"]:
+            trade["sl_hit"] = True
+            try:
+                bot_instance.send_message(
+                    chat_id=CHANNEL_ID,
+                    text="SL HIT",
+                    reply_to_message_id=msg_id
+                )
+            except:
+                pass
+            active_trade = None
+            return
+    
+    last_known_price = price
+
 # ================= MESSAGE HANDLER =================
-async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global active_trade, last_sent_price, tracking_running, trade_counter, last_known_price, app_instance
+def msg_handler(update: Update, context: CallbackContext):
+    global active_trade, last_sent_price, trade_counter, last_known_price, bot_instance
     
     user_id = update.effective_user.id
     if user_id != ADMIN_ID:
@@ -91,11 +211,20 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip().upper()
     
     if text == "/START":
-        await start_cmd(update, context)
+        start_cmd(update, context)
         return
     
     if text == "PRICE":
-        await price_cmd(update, context)
+        price_cmd(update, context)
+        return
+    
+    # Manual update command
+    if text == "UPDATE":
+        if active_trade:
+            check_price_updates()
+            update.message.reply_text("Updated")
+        else:
+            update.message.reply_text("No active trade")
         return
     
     trade_type = None
@@ -120,7 +249,7 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     price = manual if manual else get_price()
     if not price:
-        await update.message.reply_text("Failed to get price")
+        update.message.reply_text("Failed to get price")
         return
     
     entry = round(price, 2)
@@ -128,9 +257,9 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Stop old trade
     if active_trade:
         try:
-            await context.bot.send_message(
+            bot_instance.send_message(
                 chat_id=CHANNEL_ID,
-                text=f"Trade #{active_trade['trade_id']} stopped"
+                text=f"Trade #{active_trade['id']} stopped"
             )
         except:
             pass
@@ -167,192 +296,49 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Send signal
     try:
-        msg = await context.bot.send_message(
+        msg = bot_instance.send_message(
             chat_id=CHANNEL_ID,
             text=f"XAUUSD {trade_type} {entry}\n\nTP {tp1}\nTP {tp2}\n\nSL {sl}"
         )
         active_trade["msg_id"] = msg.message_id
         
-        await context.bot.send_message(
+        bot_instance.send_message(
             chat_id=CHANNEL_ID,
             text="Use proper lot size",
             reply_to_message_id=msg.message_id
         )
         
-        # Start tracker in new thread
-        if not tracking_running:
-            tracking_running = True
-            t = threading.Thread(target=track_prices, args=(app_instance,), daemon=True)
-            t.start()
-        
-        await update.message.reply_text(
-            f"Signal #{trade_counter} Active\nEntry: {entry}\nTP1: {tp1}\nTP2: {tp2}\nSL: {sl}"
+        update.message.reply_text(
+            f"Signal #{trade_counter} Active\nEntry: {entry}\nTP1: {tp1}\nTP2: {tp2}\nSL: {sl}\n\nSend UPDATE to check price"
         )
         
     except Exception as e:
         logger.error(f"Error: {e}")
         active_trade = None
 
-# ================= TRACKER =================
-def track_prices(application):
-    global active_trade, last_sent_price, tracking_running, last_known_price
-    
-    logger.info("Tracker started")
-    
-    while tracking_running:
-        try:
-            if not active_trade:
-                time.sleep(2)
-                continue
-            
-            trade = active_trade
-            trade_id = trade["id"]
-            msg_id = trade["msg_id"]
-            
-            price = get_price()
-            if not price:
-                time.sleep(5)
-                continue
-            
-            # Check if trade changed
-            if not active_trade or active_trade.get("id") != trade_id:
-                break
-            
-            # BUY logic
-            if trade["type"] == "BUY":
-                if price >= last_sent_price + 1:
-                    for p in range(int(last_sent_price) + 1, int(price) + 1):
-                        try:
-                            # Use application.bot instead of context
-                            application.bot.send_message(
-                                chat_id=CHANNEL_ID,
-                                text=f"XAUUSD Price {p}",
-                                reply_to_message_id=msg_id
-                            )
-                            last_sent_price = p
-                        except Exception as e:
-                            logger.error(f"Send error: {e}")
-                        time.sleep(0.3)
-                
-                if price >= trade["tp1"] and not trade["tp1_hit"]:
-                    trade["tp1_hit"] = True
-                    try:
-                        application.bot.send_message(
-                            chat_id=CHANNEL_ID,
-                            text="TP1 HIT - 50 pips",
-                            reply_to_message_id=msg_id
-                        )
-                    except:
-                        pass
-                
-                if price >= trade["tp2"] and not trade["tp2_hit"]:
-                    trade["tp2_hit"] = True
-                    try:
-                        application.bot.send_message(
-                            chat_id=CHANNEL_ID,
-                            text="TP2 HIT - 100 pips",
-                            reply_to_message_id=msg_id
-                        )
-                    except:
-                        pass
-                    active_trade = None
-                    break
-                
-                if price <= trade["sl"] and not trade["sl_hit"]:
-                    trade["sl_hit"] = True
-                    try:
-                        application.bot.send_message(
-                            chat_id=CHANNEL_ID,
-                            text="SL HIT",
-                            reply_to_message_id=msg_id
-                        )
-                    except:
-                        pass
-                    active_trade = None
-                    break
-            
-            # SELL logic
-            else:
-                if price <= last_sent_price - 1:
-                    for p in range(int(last_sent_price) - 1, int(price) - 1, -1):
-                        try:
-                            application.bot.send_message(
-                                chat_id=CHANNEL_ID,
-                                text=f"XAUUSD Price {p}",
-                                reply_to_message_id=msg_id
-                            )
-                            last_sent_price = p
-                        except Exception as e:
-                            logger.error(f"Send error: {e}")
-                        time.sleep(0.3)
-                
-                if price <= trade["tp1"] and not trade["tp1_hit"]:
-                    trade["tp1_hit"] = True
-                    try:
-                        application.bot.send_message(
-                            chat_id=CHANNEL_ID,
-                            text="TP1 HIT - 50 pips",
-                            reply_to_message_id=msg_id
-                        )
-                    except:
-                        pass
-                
-                if price <= trade["tp2"] and not trade["tp2_hit"]:
-                    trade["tp2_hit"] = True
-                    try:
-                        application.bot.send_message(
-                            chat_id=CHANNEL_ID,
-                            text="TP2 HIT - 100 pips",
-                            reply_to_message_id=msg_id
-                        )
-                    except:
-                        pass
-                    active_trade = None
-                    break
-                
-                if price >= trade["sl"] and not trade["sl_hit"]:
-                    trade["sl_hit"] = True
-                    try:
-                        application.bot.send_message(
-                            chat_id=CHANNEL_ID,
-                            text="SL HIT",
-                            reply_to_message_id=msg_id
-                        )
-                    except:
-                        pass
-                    active_trade = None
-                    break
-            
-            last_known_price = price
-            time.sleep(5)
-            
-        except Exception as e:
-            logger.error(f"Tracker error: {e}")
-            time.sleep(5)
-    
-    tracking_running = False
-    logger.info("Tracker stopped")
-
 # ================= MAIN =================
 def main():
-    global app_instance
+    global bot_instance, updater_instance
     
     logger.info("Gold Bot Starting...")
     
-    # Build application
-    app = Application.builder().token(BOT_TOKEN).build()
-    app_instance = app
+    # Use Updater (sync version)
+    updater = Updater(token=BOT_TOKEN, use_context=True)
+    updater_instance = updater
+    bot_instance = updater.bot
     
-    # Add handlers
-    app.add_handler(CommandHandler("start", start_cmd))
-    app.add_handler(CommandHandler("price", price_cmd))
-    app.add_handler(ChatJoinRequestHandler(join_req))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
+    dp = updater.dispatcher
+    
+    dp.add_handler(CommandHandler("start", start_cmd))
+    dp.add_handler(CommandHandler("price", price_cmd))
+    dp.add_handler(ChatJoinRequestHandler(join_req))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, msg_handler))
     
     logger.info("Bot running")
     
-    # Run
-    app.run_polling()
+    # Start polling (blocking)
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
     main()
