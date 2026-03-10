@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """
 GOLD BOT ULTIMATE - UNLIMITED API AUTO-SWITCH
-Fixed Version - No Syntax Errors
+Runtime Error Fixed Version
 """
 
 import asyncio
 import logging
 import time
 import re
-from datetime import datetime
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict
 import aiohttp
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     MessageHandler,
     ContextTypes,
@@ -28,13 +27,10 @@ ADMIN_ID = 5072932186
 
 # UNLIMITED API LIST
 API_PROVIDERS = [
-    ("ExchangeRate", "https://api.exchangerate-api.com/v4/latest/XAU", 10),
-    ("FloatRates", "https://www.floatrates.com/daily/xau.json", 5),
-    ("FawazAhmed", "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/xau.json", 5),
-    ("ExchangeRateHost", "https://api.exchangerate.host/convert?from=XAU&to=USD", 5),
+    ("ExchangeRate", "https://api.exchangerate-api.com/v4/latest/XAU"),
+    ("FloatRates", "https://www.floatrates.com/daily/xau.json"),
+    ("FawazAhmed", "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/xau.json"),
 ]
-
-API_KEYS = {}
 
 # ================= LOGGING =================
 logging.basicConfig(
@@ -44,8 +40,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ================= GLOBAL STATE =================
-active_trade: Optional[Dict] = None
-last_sent_price: Optional[float] = None
+active_trade = None
+last_sent_price = None
 tracking_running = False
 trade_counter = 0
 last_known_price = None
@@ -56,153 +52,78 @@ class APIManager:
         self.apis = API_PROVIDERS.copy()
         self.current_index = 0
         self.failed_apis = {}
-        self.success_count = {name: 0 for name, _, _ in self.apis}
-        self.fail_count = {name: 0 for name, _, _ in self.apis}
-        self.last_used = {name: 0 for name, _, _ in self.apis}
-        self.cooldown_seconds = 60
         
     def get_working_api(self):
         now = time.time()
-        attempts = 0
-        max_attempts = len(self.apis) * 2
-        
-        while attempts < max_attempts:
-            name, url, weight = self.apis[self.current_index]
+        for _ in range(len(self.apis)):
+            name, url = self.apis[self.current_index]
             
             if name in self.failed_apis:
-                if now - self.failed_apis[name] < self.cooldown_seconds:
+                if now - self.failed_apis[name] < 60:
                     self.current_index = (self.current_index + 1) % len(self.apis)
-                    attempts += 1
                     continue
                 else:
                     del self.failed_apis[name]
-                    logger.info(f"API {name} cooldown over")
             
-            time_since_last = now - self.last_used.get(name, 0)
-            min_interval = 2
-            
-            if time_since_last < min_interval:
-                self.current_index = (self.current_index + 1) % len(self.apis)
-                attempts += 1
-                continue
-            
-            self.last_used[name] = now
             return name, url
         
-        logger.warning("All APIs in cooldown, forcing first")
-        name, url, _ = self.apis[0]
-        self.last_used[name] = now
-        return name, url
+        return self.apis[0]
     
-    def mark_failed(self, name: str):
+    def mark_failed(self, name):
         self.failed_apis[name] = time.time()
-        self.fail_count[name] = self.fail_count.get(name, 0) + 1
-        logger.warning(f"API {name} failed")
         self.current_index = (self.current_index + 1) % len(self.apis)
-    
-    def mark_success(self, name: str):
-        self.success_count[name] = self.success_count.get(name, 0) + 1
-        logger.info(f"API {name} success")
-    
-    def get_stats(self) -> str:
-        stats = "API Stats:\n"
-        for name, _, _ in self.apis:
-            succ = self.success_count.get(name, 0)
-            fail = self.fail_count.get(name, 0)
-            status = "OK" if name not in self.failed_apis else "COOL"
-            stats += f"{name}: {succ}OK {fail}FAIL ({status})\n"
-        return stats
 
 api_manager = APIManager()
 
 # ================= PRICE FETCH =================
-async def fetch_price() -> Optional[float]:
-    max_retries = len(API_PROVIDERS)
-    attempted = set()
+async def fetch_price():
+    global last_known_price
     
-    for _ in range(max_retries):
-        api_name, api_url = api_manager.get_working_api()
-        
-        if api_name in attempted:
-            continue
-        attempted.add(api_name)
-        
+    for name, url in API_PROVIDERS:
         try:
-            price = await try_fetch_from_api(api_name, api_url)
-            if price and 1800 < price < 10000:
-                api_manager.mark_success(api_name)
-                return round(price, 2)
+            headers = {"User-Agent": "Mozilla/5.0"}
+            timeout = aiohttp.ClientTimeout(total=10)
+            
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        price = None
+                        
+                        if name == "ExchangeRate":
+                            price = float(data["rates"]["USD"])
+                        elif name == "FloatRates":
+                            price = float(data["usd"]["rate"])
+                        elif name == "FawazAhmed":
+                            price = float(data["usd"])
+                        
+                        if price and 1800 < price < 10000:
+                            last_known_price = round(price, 2)
+                            return last_known_price
+                            
         except Exception as e:
-            logger.error(f"API {api_name} error: {e}")
-            api_manager.mark_failed(api_name)
+            logger.error(f"{name} failed: {e}")
+            api_manager.mark_failed(name)
             continue
     
-    logger.critical("ALL APIs FAILED")
     return last_known_price
-
-async def try_fetch_from_api(name: str, url: str) -> Optional[float]:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.0"
-    }
-    
-    if name in API_KEYS and API_KEYS[name]:
-        if "?" in url:
-            url = url.replace("YOUR_KEY", API_KEYS[name])
-        headers["x-access-token"] = API_KEYS.get(name, "")
-    
-    timeout = aiohttp.ClientTimeout(total=10)
-    
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.get(url, headers=headers) as response:
-            if response.status != 200:
-                raise Exception(f"HTTP {response.status}")
-            
-            data = await response.json()
-            return parse_price_from_response(name, data)
-
-def parse_price_from_response(api_name: str, data: dict) -> Optional[float]:
-    try:
-        if api_name == "ExchangeRate":
-            return float(data["rates"]["USD"])
-        elif api_name == "FloatRates":
-            return float(data["usd"]["rate"])
-        elif api_name == "FawazAhmed":
-            return float(data["usd"])
-        elif api_name == "ExchangeRateHost":
-            return float(data["result"])
-    except Exception as e:
-        logger.error(f"Parse error {api_name}: {e}")
-    
-    return None
 
 # ================= COMMANDS =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Gold Bot ULTIMATE Online!\n\n"
-        "Unlimited APIs Active\n"
-        "Auto-failover Enabled\n\n"
         "Commands:\n"
         "BUY 5078 - Create signal\n"
         "SELL 5080 - Create signal\n"
-        "PRICE - Check price\n"
-        "STATS - API statistics",
-        parse_mode="HTML"
+        "PRICE - Check price"
     )
 
 async def price_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price = await fetch_price()
     if price:
-        current_api = api_manager.apis[api_manager.current_index][0]
-        await update.message.reply_text(
-            f"Live Price: {price}\nSource: {current_api}",
-            parse_mode="HTML"
-        )
+        await update.message.reply_text(f"Live Price: {price}")
     else:
-        await update.message.reply_text("All APIs failed")
-
-async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    stats = api_manager.get_stats()
-    await update.message.reply_text(stats)
+        await update.message.reply_text("Failed to fetch price")
 
 # ================= AUTO JOIN =================
 async def approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -234,10 +155,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await price_cmd(update, context)
         return
     
-    if text_upper == "STATS":
-        await stats_cmd(update, context)
-        return
-    
     trade_type = None
     if text_upper.startswith("BUY"):
         trade_type = "BUY"
@@ -263,7 +180,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price = await fetch_price()
     
     if not price:
-        await update.message.reply_text("All APIs failed")
+        await update.message.reply_text("Failed to get price")
         return
     
     entry = round(price, 2)
@@ -273,9 +190,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await context.bot.send_message(
                 chat_id=CHANNEL_ID,
-                text=f"Trade #{old_id} stopped",
-                parse_mode="HTML",
-                reply_to_message_id=active_trade.get("message_id")
+                text=f"Trade #{old_id} stopped"
             )
         except:
             pass
@@ -311,16 +226,14 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         msg = await context.bot.send_message(
             chat_id=CHANNEL_ID,
-            text=f"<b>XAUUSD {trade_type} {entry}</b>\n\n<b>TP {tp1}</b>\n<b>TP {tp2}</b>\n\n<b>SL {sl}</b>",
-            parse_mode="HTML"
+            text=f"XAUUSD {trade_type} {entry}\n\nTP {tp1}\nTP {tp2}\n\nSL {sl}"
         )
         
         active_trade["message_id"] = msg_id = msg.message_id
         
         await context.bot.send_message(
             chat_id=CHANNEL_ID,
-            text="<b>Use lot size according to account equity</b>",
-            parse_mode="HTML",
+            text="Use lot size according to account equity",
             reply_to_message_id=msg_id
         )
         
@@ -340,7 +253,7 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def tracker(context: ContextTypes.DEFAULT_TYPE):
     global active_trade, last_sent_price, tracking_running, last_known_price
     
-    logger.info("Tracker Started")
+    logger.info("Tracker started")
     
     while True:
         try:
@@ -355,7 +268,6 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
             current_price = await fetch_price()
             
             if not current_price:
-                logger.warning("All APIs failed, retrying")
                 await asyncio.sleep(5)
                 continue
             
@@ -371,11 +283,9 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                         try:
                             await context.bot.send_message(
                                 chat_id=CHANNEL_ID,
-                                text=f"<b>XAUUSD active Price {temp}</b>",
-                                parse_mode="HTML",
+                                text=f"XAUUSD active Price {temp}",
                                 reply_to_message_id=msg_id
                             )
-                            logger.info(f"Update: {temp}")
                             last_sent_price = temp
                         except Exception as e:
                             logger.error(f"Send error: {e}")
@@ -388,8 +298,7 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                     try:
                         await context.bot.send_message(
                             chat_id=CHANNEL_ID,
-                            text="<b>XAUUSD TP1 hit 50+ pips</b>",
-                            parse_mode="HTML",
+                            text="XAUUSD TP1 hit 50+ pips",
                             reply_to_message_id=msg_id
                         )
                     except:
@@ -400,8 +309,7 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                     try:
                         await context.bot.send_message(
                             chat_id=CHANNEL_ID,
-                            text="<b>XAUUSD TP2 hit 100+ pips</b>",
-                            parse_mode="HTML",
+                            text="XAUUSD TP2 hit 100+ pips",
                             reply_to_message_id=msg_id
                         )
                     except:
@@ -414,8 +322,7 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                     try:
                         await context.bot.send_message(
                             chat_id=CHANNEL_ID,
-                            text="<b>SL HIT</b>",
-                            parse_mode="HTML",
+                            text="SL HIT",
                             reply_to_message_id=msg_id
                         )
                     except:
@@ -432,11 +339,9 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                         try:
                             await context.bot.send_message(
                                 chat_id=CHANNEL_ID,
-                                text=f"<b>XAUUSD active Price {temp}</b>",
-                                parse_mode="HTML",
+                                text=f"XAUUSD active Price {temp}",
                                 reply_to_message_id=msg_id
                             )
-                            logger.info(f"Update: {temp}")
                             last_sent_price = temp
                         except Exception as e:
                             logger.error(f"Send error: {e}")
@@ -449,8 +354,7 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                     try:
                         await context.bot.send_message(
                             chat_id=CHANNEL_ID,
-                            text="<b>XAUUSD TP1 hit 50+ pips</b>",
-                            parse_mode="HTML",
+                            text="XAUUSD TP1 hit 50+ pips",
                             reply_to_message_id=msg_id
                         )
                     except:
@@ -461,8 +365,7 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                     try:
                         await context.bot.send_message(
                             chat_id=CHANNEL_ID,
-                            text="<b>XAUUSD TP2 hit 100+ pips</b>",
-                            parse_mode="HTML",
+                            text="XAUUSD TP2 hit 100+ pips",
                             reply_to_message_id=msg_id
                         )
                     except:
@@ -475,8 +378,7 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                     try:
                         await context.bot.send_message(
                             chat_id=CHANNEL_ID,
-                            text="<b>SL HIT</b>",
-                            parse_mode="HTML",
+                            text="SL HIT",
                             reply_to_message_id=msg_id
                         )
                     except:
@@ -496,31 +398,21 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
 
 # ================= MAIN =================
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    logger.info("Starting Gold Bot")
     
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("price", price_cmd))
-    app.add_handler(CommandHandler("stats", stats_cmd))
-    app.add_handler(ChatJoinRequestHandler(approve_join))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
+    # Use Application.builder() instead of ApplicationBuilder()
+    application = Application.builder().token(BOT_TOKEN).build()
     
-    logger.info("=" * 50)
-    logger.info("GOLD BOT ULTIMATE - UNLIMITED APIs")
-    logger.info(f"Total APIs: {len(API_PROVIDERS)}")
-    logger.info("=" * 50)
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("price", price_cmd))
+    application.add_handler(ChatJoinRequestHandler(approve_join))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
     
-    app.run_polling(
-        poll_interval=1,
-        timeout=20,
-        drop_pending_updates=True,
-        allowed_updates=Update.ALL_TYPES
-    )
+    logger.info("Bot is running")
+    
+    # Simple run_polling without complex parameters
+    application.run_polling()
 
 if __name__ == "__main__":
-    while True:
-        try:
-            main()
-        except Exception as e:
-            logger.critical(f"CRASH: {e}")
-            time.sleep(5)
-            
+    main()
+    
