@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-GOLD BOT - SIMPLE WORKING VERSION
+GOLD BOT - RENDER COMPATIBLE VERSION
+Uses requests instead of aiohttp
 """
 
-import asyncio
+import threading
 import logging
 import time
 import re
-import aiohttp
+import requests
 from telegram import Update, Bot
 from telegram.ext import (
     Updater,
@@ -46,32 +47,30 @@ last_known_price = None
 bot_instance = None
 
 # ================= PRICE FETCH =================
-async def fetch_price():
+def fetch_price():
     global last_known_price
+    
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     
     for url in API_URLS:
         try:
-            headers = {"User-Agent": "Mozilla/5.0"}
-            timeout = aiohttp.ClientTimeout(total=10)
-            
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, headers=headers) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        price = None
-                        
-                        if "rates" in data and "USD" in data["rates"]:
-                            price = float(data["rates"]["USD"])
-                        elif "usd" in data:
-                            if isinstance(data["usd"], dict) and "rate" in data["usd"]:
-                                price = float(data["usd"]["rate"])
-                            else:
-                                price = float(data["usd"])
-                        
-                        if price and 1800 < price < 10000:
-                            last_known_price = round(price, 2)
-                            return last_known_price
-                            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                price = None
+                
+                if "rates" in data and "USD" in data["rates"]:
+                    price = float(data["rates"]["USD"])
+                elif "usd" in data:
+                    if isinstance(data["usd"], dict) and "rate" in data["usd"]:
+                        price = float(data["usd"]["rate"])
+                    else:
+                        price = float(data["usd"])
+                
+                if price and 1800 < price < 10000:
+                    last_known_price = round(price, 2)
+                    return last_known_price
+                    
         except Exception as e:
             logger.error(f"API failed: {e}")
             continue
@@ -89,7 +88,7 @@ def start(update: Update, context: CallbackContext):
     )
 
 def price_cmd(update: Update, context: CallbackContext):
-    price = asyncio.run(fetch_price())
+    price = fetch_price()
     if price:
         update.message.reply_text(f"Live Price: {price}")
     else:
@@ -147,7 +146,7 @@ def handle_msg(update: Update, context: CallbackContext):
     if manual_price:
         price = manual_price
     else:
-        price = asyncio.run(fetch_price())
+        price = fetch_price()
     
     if not price:
         update.message.reply_text("Failed to get price")
@@ -220,8 +219,6 @@ def handle_msg(update: Update, context: CallbackContext):
         active_trade = None
 
 # ================= TRACKER =================
-import threading
-
 def tracker():
     global active_trade, last_sent_price, tracking_running, last_known_price
     
@@ -237,7 +234,7 @@ def tracker():
             trade_id = trade["trade_id"]
             msg_id = trade["message_id"]
             
-            current_price = asyncio.run(fetch_price())
+            current_price = fetch_price()
             
             if not current_price:
                 time.sleep(5)
@@ -391,4 +388,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+            
