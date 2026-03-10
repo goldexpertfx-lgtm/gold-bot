@@ -578,4 +578,6 @@ async def tracker_multi_api(context: ContextTypes.DEFAULT_TYPE):
     while True:
         try:
             if not active_trade:
-                await asyncio
+    await asyncio.sleep(5)
+    continue
+
