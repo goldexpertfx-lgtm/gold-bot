@@ -35,8 +35,6 @@ API_PROVIDERS: List[Dict] = [
     {"name": "ExchangeRate-Host", "url": "https://api.exchangerate.host/convert?from=XAU&to=USD", "weight": 8},
     {"name": "OpenER-API", "url": "https://open.er-api.com/v6/latest/XAU", "weight": 8},
     {"name": "Frankfurter", "url": "https://api.frankfurter.app/latest?from=XAU&to=USD", "weight": 8},
-    {"name": "CurrencyAPI-Free", "url": "https://api.currencyapi.com/v3/latest?base_currency=XAU&currencies=USD", "weight": 5},
-    {"name": "ExchangeRate-Backup", "url": "https://v6.exchangerate-api.com/v6/free/latest/XAU", "weight": 5},
 ]
 
 # ================= LOGGING =================
@@ -53,7 +51,7 @@ tracking_running = False
 trade_counter = 0
 last_known_price = None
 current_api_index = 0
-failed_apis = {}  # Track failed APIs with cooldown
+failed_apis = {}
 
 # ================= UNLIMITED PRICE FETCH =================
 async def fetch_price() -> Optional[float]:
@@ -68,7 +66,6 @@ async def fetch_price() -> Optional[float]:
         name = provider["name"]
         url = provider["url"]
         
-        # Skip if in cooldown
         if name in failed_apis and now - failed_apis[name] < 60:
             current_api_index = (current_api_index + 1) % len(API_PROVIDERS)
             continue
@@ -80,7 +77,6 @@ async def fetch_price() -> Optional[float]:
                         data = await response.json()
                         price = None
                         
-                        # Parse different API formats
                         if "rates" in data and "USD" in data["rates"]:
                             price = float(data["rates"]["USD"])
                         elif "usd" in data:
@@ -102,10 +98,8 @@ async def fetch_price() -> Optional[float]:
             logger.warning(f"❌ {name} failed: {e}")
             failed_apis[name] = now
         
-        # Move to next API
         current_api_index = (current_api_index + 1) % len(API_PROVIDERS)
     
-    # All failed - return last known
     logger.error("⚠️ ALL APIs FAILED - Using last known price")
     return last_known_price
 
@@ -135,7 +129,6 @@ async def price_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Failed to fetch from all APIs")
 
 async def apis_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Check API status"""
     status = f"🌐 <b>Total APIs: {len(API_PROVIDERS)}</b>\n\n"
     for i, api in enumerate(API_PROVIDERS, 1):
         name = api["name"]
@@ -177,7 +170,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await apis_cmd(update, context)
         return
     
-    # Parse trade
     trade_type = None
     if text_upper.startswith("BUY"):
         trade_type = "BUY"
@@ -187,7 +179,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not trade_type:
         return
     
-    # Extract price
     numbers = re.findall(r'\d{4}\.?\d{0,2}', text)
     manual_price = None
     if numbers:
@@ -198,7 +189,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
-    # Get price
     if manual_price:
         price = manual_price
     else:
@@ -210,7 +200,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     entry = round(price, 2)
     
-    # Stop old trade
     if active_trade:
         old_id = active_trade.get("trade_id")
         try:
@@ -225,7 +214,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         active_trade = None
         await asyncio.sleep(1)
     
-    # Calculate
     if trade_type == "BUY":
         tp1 = round(entry + 5, 2)
         tp2 = round(entry + 10, 2)
@@ -235,7 +223,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tp2 = round(entry - 10, 2)
         sl = round(entry + 10, 2)
     
-    # Create trade
     trade_counter += 1
     active_trade = {
         "trade_id": trade_counter,
@@ -253,7 +240,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_sent_price = entry
     last_known_price = entry
     
-    # Send signal
     try:
         msg = await context.bot.send_message(
             CHANNEL_ID,
@@ -273,7 +259,6 @@ async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_to_message_id=msg_id
         )
         
-        # Start tracker
         if not tracking_running:
             tracking_running = True
             asyncio.create_task(tracker(context))
@@ -304,27 +289,19 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
             trade_id = trade["trade_id"]
             msg_id = trade["message_id"]
             
-            # Fetch REAL price
             current_price = await fetch_price()
             
-            # If fetch failed, use last known but DON'T send fake updates
             if not current_price:
                 logger.warning("Price fetch failed, waiting...")
                 await asyncio.sleep(3)
                 continue
             
-            # Check if trade replaced
             if not active_trade or active_trade.get("trade_id") != trade_id:
                 break
             
-            # ONLY send update if price ACTUALLY changed by $1 or more
             if trade["type"] == "BUY":
-                # Price went UP by $1 or more
                 if current_price >= last_sent_price + 1:
-                    # Send update for new price level
-                    new_level = int(current_price)  # Round to integer for clean levels
-                    
-                    # Send all skipped levels
+                    new_level = int(current_price)
                     temp = int(last_sent_price) + 1
                     while temp <= new_level:
                         try:
@@ -342,7 +319,6 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                         temp += 1
                         await asyncio.sleep(0.3)
                 
-                # Check TP/SL with REAL price
                 if current_price >= trade["tp1"] and not trade["tp1_hit"]:
                     trade["tp1_hit"] = True
                     try:
@@ -384,10 +360,8 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                     break
             
             else:  # SELL
-                # Price went DOWN by $1 or more
                 if current_price <= last_sent_price - 1:
                     new_level = int(current_price)
-                    
                     temp = int(last_sent_price) - 1
                     while temp >= new_level:
                         try:
@@ -405,7 +379,6 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                         temp -= 1
                         await asyncio.sleep(0.3)
                 
-                # Check TP/SL
                 if current_price <= trade["tp1"] and not trade["tp1_hit"]:
                     trade["tp1_hit"] = True
                     try:
@@ -446,11 +419,8 @@ async def tracker(context: ContextTypes.DEFAULT_TYPE):
                     active_trade = None
                     break
             
-            # Update last known price
             last_known_price = current_price
-            
-            # Wait before next check
-            await asyncio.sleep(5)  # Check every 5 seconds
+            await asyncio.sleep(5)
             
         except Exception as e:
             logger.error(f"Tracker error: {e}")
@@ -482,10 +452,5 @@ def main():
     )
 
 if __name__ == "__main__":
-    while True:
-        try:
-            main()
-        except Exception as e:
-            logger.critical(f"CRASH: {e}")
-            time.sleep(5)
-    
+    main()  # Bas simple call, no while loop
+                            
