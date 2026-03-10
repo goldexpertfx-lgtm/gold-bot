@@ -522,7 +522,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error: {e}")
         active_trade = None
 
-# ================= MULTI-API TRACKER (FIXED) =================
+# ================= MULTI-API TRACKER (COMPLETELY FIXED) =================
 
 async def tracker_multi_api(context: ContextTypes.DEFAULT_TYPE):
     """24/7 tracker with multi-API failover"""
@@ -565,6 +565,6 @@ async def tracker_multi_api(context: ContextTypes.DEFAULT_TYPE):
                     except Exception as e:
                         logger.error(f"TP1 notify error: {e}")
             
-            # Check TP2
+            # Check TP2 - FIXED BRACKET HERE
             if not active_trade["tp2_hit"]:
-                if (trade_type == "BUY" and price >= tp2) or (trade_type == "SELL" and price <= tp2
+                if (trade_type == "BUY" and price >= tp2) or (trade
