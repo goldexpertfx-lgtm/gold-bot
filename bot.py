@@ -565,6 +565,20 @@ async def tracker_multi_api(context: ContextTypes.DEFAULT_TYPE):
                     except Exception as e:
                         logger.error(f"TP1 notify error: {e}")
             
-            # Check TP2 - FIXED BRACKET HERE
+                        # Check TP2
             if not active_trade["tp2_hit"]:
-                if (trade_type == "BUY" and price >= tp2) or (trade
+                condition1 = (trade_type == "BUY" and price >= tp2)
+                condition2 = (trade_type == "SELL" and price <= tp2)
+                if condition1 or condition2:
+                    active_trade["tp2_hit"] = True
+                    try:
+                        await context.bot.send_message(
+                            CHANNEL_ID,
+                            f"🏆 <b>TP2 HIT!</b>\nPrice: {price}\nTrade Complete!",
+                            parse_mode="HTML",
+                            reply_to_message_id=active_trade["message_id"]
+                        )
+                        active_trade = None
+                        continue
+                    except Exception as e:
+                        logger.error(f"TP2 notify error: {e}")
