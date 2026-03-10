@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-GOLD BOT - RENDER COMPATIBLE VERSION
-Uses requests instead of aiohttp
+GOLD BOT - PYTHON 3.14 COMPATIBLE
 """
 
 import threading
@@ -9,13 +8,13 @@ import logging
 import time
 import re
 import requests
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import (
-    Updater,
+    Application,
     CommandHandler,
     MessageHandler,
-    CallbackContext,
-    Filters,
+    ContextTypes,
+    filters,
     ChatJoinRequestHandler,
 )
 
@@ -78,8 +77,8 @@ def fetch_price():
     return last_known_price
 
 # ================= COMMANDS =================
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text(
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
         "Gold Bot Online!\n\n"
         "Commands:\n"
         "BUY 5078 - Create signal\n"
@@ -87,17 +86,17 @@ def start(update: Update, context: CallbackContext):
         "PRICE - Check price"
     )
 
-def price_cmd(update: Update, context: CallbackContext):
+async def price_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price = fetch_price()
     if price:
-        update.message.reply_text(f"Live Price: {price}")
+        await update.message.reply_text(f"Live Price: {price}")
     else:
-        update.message.reply_text("Failed to fetch")
+        await update.message.reply_text("Failed to fetch")
 
 # ================= AUTO JOIN =================
-def approve_join(update: Update, context: CallbackContext):
+async def approve_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        context.bot.approve_chat_join_request(
+        await context.bot.approve_chat_join_request(
             chat_id=update.chat_join_request.chat.id,
             user_id=update.chat_join_request.from_user.id,
         )
@@ -105,7 +104,7 @@ def approve_join(update: Update, context: CallbackContext):
         pass
 
 # ================= MESSAGE HANDLER =================
-def handle_msg(update: Update, context: CallbackContext):
+async def handle_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global active_trade, last_sent_price, tracking_running, trade_counter, last_known_price, bot_instance
     
     user_id = update.effective_user.id
@@ -117,11 +116,11 @@ def handle_msg(update: Update, context: CallbackContext):
     text_upper = text.upper()
     
     if text_upper == "/START":
-        start(update, context)
+        await start(update, context)
         return
     
     if text_upper == "PRICE":
-        price_cmd(update, context)
+        await price_cmd(update, context)
         return
     
     trade_type = None
@@ -149,7 +148,7 @@ def handle_msg(update: Update, context: CallbackContext):
         price = fetch_price()
     
     if not price:
-        update.message.reply_text("Failed to get price")
+        await update.message.reply_text("Failed to get price")
         return
     
     entry = round(price, 2)
@@ -157,7 +156,7 @@ def handle_msg(update: Update, context: CallbackContext):
     if active_trade:
         old_id = active_trade.get("trade_id")
         try:
-            bot_instance.send_message(
+            await context.bot.send_message(
                 chat_id=CHANNEL_ID,
                 text=f"Trade #{old_id} stopped"
             )
@@ -193,14 +192,14 @@ def handle_msg(update: Update, context: CallbackContext):
     last_known_price = entry
     
     try:
-        msg = bot_instance.send_message(
+        msg = await context.bot.send_message(
             chat_id=CHANNEL_ID,
             text=f"XAUUSD {trade_type} {entry}\n\nTP {tp1}\nTP {tp2}\n\nSL {sl}"
         )
         
         active_trade["message_id"] = msg_id = msg.message_id
         
-        bot_instance.send_message(
+        await context.bot.send_message(
             chat_id=CHANNEL_ID,
             text="Use lot size according to account equity",
             reply_to_message_id=msg_id
@@ -210,7 +209,7 @@ def handle_msg(update: Update, context: CallbackContext):
             tracking_running = True
             threading.Thread(target=tracker, daemon=True).start()
         
-        update.message.reply_text(
+        await update.message.reply_text(
             f"Signal #{trade_counter} Active\nEntry: {entry} | TP1: {tp1} | TP2: {tp2} | SL: {sl}"
         )
         
@@ -371,21 +370,18 @@ def main():
     
     logger.info("Starting Gold Bot")
     
-    updater = Updater(token=BOT_TOKEN, use_context=True)
-    bot_instance = updater.bot
+    application = Application.builder().token(BOT_TOKEN).build()
+    bot_instance = application.bot
     
-    dispatcher = updater.dispatcher
-    
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("price", price_cmd))
-    dispatcher.add_handler(ChatJoinRequestHandler(approve_join))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_msg))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("price", price_cmd))
+    application.add_handler(ChatJoinRequestHandler(approve_join))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
     
     logger.info("Bot is running")
     
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
-            
+        
