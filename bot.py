@@ -8,16 +8,16 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # Yahan apne asli links aur codes likhein
-EXNESS_LINK = "https://one.exness-track.com/a/your_code"
-XM_LINK = "https://clicks.pipaffiliates.com/c?m=your_code"
-OCTAFX_LINK = "https://www.octafx.com/?refid=your_code"
+EXNESS_LINK = "https://one.exnessonelink.com/a/gtxdy70by3"
+XM_LINK = "https://www.xmwebsite.net/referral?token=E3IeNfn7aa2gpzT6hOA1Iw"
+OCTAFX_LINK = "https://octasl.click/iGWPxkbrznp"
 
 PARTNER_CODES = """
 ✨ **Official Partner Codes** ✨
 
-🔹 **Exness:** `123456`
-🔹 **XM:** `ABCDE`
-🔹 **OctaFX:** `OCTA789`
+🔹 **Exness:** `gtxdy70by3`
+🔹 **XM:** `E3IeNfn7aa2gpzT6hOA1Iw`
+🔹 **OctaFX:** `iGWPxkbrznp`
 
 *Copy and use these codes during registration.*
 """
@@ -30,7 +30,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📈 Open XM Account", url=XM_LINK)],
         [InlineKeyboardButton("🌍 Open OctaFX Account", url=OCTAFX_LINK)],
         [InlineKeyboardButton("📋 View Partner Codes", callback_data='show_codes')],
-        [InlineKeyboardButton("👨‍💻 Contact Support", url="https://t.me/your_username")]
+        [InlineKeyboardButton("👨‍💻 Contact Support", url="https://t.me/FxJack")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
