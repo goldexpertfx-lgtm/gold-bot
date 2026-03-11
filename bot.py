@@ -5,7 +5,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # ================= CONFIG =================
 # Ye Token Render ki Environment Settings se uthayega
-BOT_TOKEN = os.getenv("8284715892:AAE-rjrQovkKdI9HdxozsejhqKXfoy8BZRE")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # Yahan apne asli links aur codes likhein
 EXNESS_LINK = "https://one.exness-track.com/a/your_code"
