@@ -3,56 +3,52 @@ import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# Config
+# ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 5072932186
 WHATSAPP_LINK = "https://whatsapp.com/channel/0029Vb5eRVjGzzKNnL7c050y"
 
+# ================= HANDLERS =================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     
-    # --- MESSAGE 1: Greeting ---
+    # 1. Greeting Message (Bold Name)
     await update.message.reply_text(f"Hey, <b>{user_name}</b> !", parse_mode='HTML')
     
-    # --- MESSAGE 2: Join Text with Inline Button ---
-    join_keyboard = [[InlineKeyboardButton("JOIN NOW 👇✅", url=WHATSAPP_LINK)]]
+    # 2. Join Whatsapp Message (Bold Text + Button)
+    join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=WHATSAPP_LINK)]]
     await update.message.reply_text(
         text="<b>Join Whatsapp Channel 👇👇</b>",
         parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(join_keyboard)
+        reply_markup=InlineKeyboardMarkup(join_kb)
     )
 
-    # --- MESSAGE 3: Reply Keyboard Button (Niche wala bada button) ---
-    # Ye button keyboard ki jagah show hoga
-    reply_keyboard = [["GOLD SIGNALS ✅"]]
+    # 3. Main Menu Button (Niche wala bada button)
+    reply_kb = [["GOLD SIGNALS ✅"]]
     await update.message.reply_text(
         text="Click below to get signals anytime 👇",
-        reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(reply_kb, resize_keyboard=True)
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     user_name = update.effective_user.first_name
     text = update.message.text
 
-    # Agar koi "GOLD SIGNALS ✅" button dabaye
+    # Jab koi "GOLD SIGNALS ✅" button press kare
     if text == "GOLD SIGNALS ✅":
-        signal_msg = f"<b>{user_name}</b> Here is our Gold Signals link For You 🤗"
-        keyboard = [[InlineKeyboardButton("JOIN NOW ✅", url=WHATSAPP_LINK)]]
+        # Name BOLD hoga aur baaki text simple
+        response_text = f"<b>{user_name}</b> Here is our Gold Signals link For You 🤗"
+        
+        button = [[InlineKeyboardButton("JOIN NOW ✅", url=WHATSAPP_LINK)]]
         
         await update.message.reply_text(
-            text=signal_msg,
+            text=response_text,
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(button)
         )
-        return
 
-    # Admin Signal Logic (BUY/SELL)
-    if user_id == ADMIN_ID:
-        cmd = text.upper()
-        if "BUY" in cmd or "SELL" in cmd:
-            # Yahan purana price fetch aur signal posting ka logic aayega
-            await update.message.reply_text("✅ Admin Signal Received (Logic Active)")
+# ================= MAIN =================
 
 if __name__ == "__main__":
     if not BOT_TOKEN:
@@ -63,6 +59,7 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        print("Bot is running perfectly...")
+        print("Bot is live...")
+        # Conflict prevention
         app.run_polling(drop_pending_updates=True)
         
