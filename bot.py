@@ -10,11 +10,18 @@ ADMIN_ID = 5072932186  # Aapka ID
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # User ka naam nikalna
     user_name = update.effective_user.first_name
-    # Greeting Message
-    await update.message.reply_text(f"Hey, **{user_name}** !", parse_mode='Markdown')
+    
+    # Hey, simple rahega aur name Bold hoga
+    # MarkdownV2 mein bold karne ke liye * use hota hai
+    greeting_text = f"Hey, *{user_name}* !"
+    
+    await update.message.reply_text(
+        text=greeting_text, 
+        parse_mode='MarkdownV2'
+    )
 
 async def handle_admin_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Yahan aapka signal logic aayega jo maine pehle diya tha
+    # Aapka signal logic yahan aayega
     pass
 
 if __name__ == "__main__":
@@ -24,5 +31,8 @@ if __name__ == "__main__":
         app = ApplicationBuilder().token(BOT_TOKEN).build()
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_msg))
-        app.run_polling()
+        
+        print("Bot is starting...")
+        # drop_pending_updates=True taaki conflict error na aaye
+        app.run_polling(drop_pending_updates=True)
         
