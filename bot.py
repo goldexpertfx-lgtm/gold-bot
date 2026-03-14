@@ -18,12 +18,15 @@ async def send_reminder(context: ContextTypes.DEFAULT_TYPE):
     
     text = "<b>⚠️ Reminder: Join Our Official Channel!</b>\n\nDon't miss our daily Gold Signals and VIP updates. Click below to join now! 🚀"
     
-    await context.bot.send_message(
-        chat_id=job.chat_id,
-        text=text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(join_kb)
-    )
+    try:
+        await context.bot.send_message(
+            chat_id=job.chat_id,
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(join_kb)
+        )
+    except:
+        pass
 
 # ================= HANDLERS =================
 
@@ -31,26 +34,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     chat_id = update.effective_message.chat_id
     
-    # 1. Pehla Message: Greeting
-    await update.message.reply_text(f"Hey, <b>{user_name}</b> !", parse_mode='HTML')
-    
-    # 2. Dusra Message: Join Whatsapp + Bada Bottom Button
-    # Niche wala bada button yahan attach kiya hai
+    # Bottom Bada Button Setup
     reply_kb = [["🎁 Claim Your FREE Premium Gold VIP Access Now"]]
     bottom_button = ReplyKeyboardMarkup(reply_kb, resize_keyboard=True)
     
-    # Inline button sirf message ke niche
+    # 1. Greeting Message (Isi ke saath bada button attach kar diya taaki dot na aaye)
+    await update.message.reply_text(
+        text=f"Hey, <b>{user_name}</b> !", 
+        parse_mode='HTML',
+        reply_markup=bottom_button
+    )
+    
+    # 2. Join Whatsapp Message (Inline Button)
     join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=WHATSAPP_LINK)]]
     
     await update.message.reply_text(
         text="<b>Join Whatsapp Channel 👇👇</b>",
         parse_mode='HTML',
-        reply_markup=ReplyKeyboardMarkup(reply_kb, resize_keyboard=True) # Bada button activate
-    )
-    
-    # Isi ke niche foran button wala message (Bina extra text ke)
-    await update.message.reply_text(
-        text=".", # Sirf ek dot jo jaldi hide ho jaye
         reply_markup=InlineKeyboardMarkup(join_kb)
     )
 
@@ -86,6 +86,6 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        print("Bot is LIVE (Clean Version)...")
+        print("Bot is LIVE (No Dot Version)...")
         app.run_polling(drop_pending_updates=True)
         
