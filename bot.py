@@ -16,12 +16,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 1. Greeting Message (Bold Name)
     await update.message.reply_text(f"Hey, <b>{user_name}</b> !", parse_mode='HTML')
     
-    # 2. Join Message (Bold Text + Inline Button)
-    # Is ke saath niche bada VIP wala button bhi activate ho jayega
+    # 2. Join Message (Bold Text + Button)
     join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=VIP_LINK)]]
     
-    # Bada button niche wala
+    # --- REPLY KEYBOARD (Niche wala bada button jaha message type karte hain) ---
+    # resize_keyboard=True se button ka size chota aur sahi ho jata hai
     reply_kb = [["🎁 Claim Your FREE Premium Gold VIP Access Now"]]
+    main_button = ReplyKeyboardMarkup(reply_kb, resize_keyboard=True)
     
     await update.message.reply_text(
         text="<b>Join Whatsapp Channel 👇👇</b>",
@@ -29,22 +30,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(join_kb)
     )
     
-    # Bada button show karne ke liye chota sa message
+    # Button ko active karne ke liye ek chota message bhejna
     await update.message.reply_text(
-        text=".", 
-        reply_markup=ReplyKeyboardMarkup(reply_keyboard=reply_kb, resize_keyboard=True)
+        text="Click the button below to get started! 👇", 
+        reply_markup=main_button
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     text = update.message.text
 
-    # Jab koi VIP Access wala button dabaye
+    # Jab koi bada button dabaye
     if text == "🎁 Claim Your FREE Premium Gold VIP Access Now":
-        # Name show hoga phir Membership wala text
+        # Name show hoga (Bold) aur phir membership text
         response_text = f"<b>{user_name}</b> 🚀 Unlock Your FREE Premium Gold VIP Membership"
         
-        # Button mein Bold text "JOIN NOW ✅"
+        # Link button ke sath
         button = [[InlineKeyboardButton("JOIN NOW ✅", url=VIP_LINK)]]
         
         await update.message.reply_text(
@@ -64,6 +65,6 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        print("Bot is live with VIP features...")
+        print("Bot is running with bottom button...")
         app.run_polling(drop_pending_updates=True)
         
