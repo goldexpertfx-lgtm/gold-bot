@@ -1,61 +1,29 @@
 import os
-import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import asyncio
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# ================= CONFIG =================
-# Ye Token Render ki Environment Settings se uthayega
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-# Yahan apne asli links aur codes likhein
-EXNESS_LINK = "https://one.exnessonelink.com/a/gtxdy70by3"
-XM_LINK = "https://www.xmwebsite.net/referral?token=E3IeNfn7aa2gpzT6hOA1Iw"
-OCTAFX_LINK = "https://octasl.click/iGWPxkbrznp"
-
-PARTNER_CODES = """
-✨ **Official Partner Codes** ✨
-
-🔹 **Exness:** `gtxdy70by3`
-🔹 **XM:** `E3IeNfn7aa2gpzT6hOA1Iw`
-🔹 **OctaFX:** `iGWPxkbrznp`
-
-*Copy and use these codes during registration.*
-"""
-
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+# ... (Baaki purana Config aur API logic yahan rahega) ...
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("💎 Open Exness Account", url=EXNESS_LINK)],
-        [InlineKeyboardButton("📈 Open XM Account", url=XM_LINK)],
-        [InlineKeyboardButton("🌍 Open OctaFX Account", url=OCTAFX_LINK)],
-        [InlineKeyboardButton("📋 View Partner Codes", callback_data='show_codes')],
-        [InlineKeyboardButton("👨‍💻 Contact Support", url="https://t.me/FxJack")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    # User ka pehla naam nikalna
+    user_name = update.effective_user.first_name
     
-    welcome_text = (
-        "👋 **Welcome to Gold Expert FX!**\n\n"
-        "Start trading with the world's most trusted brokers. "
-        "Register using our links below to join our **VIP Signal Group** for free!"
-    )
-    await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
-
-async def codes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(PARTNER_CODES, parse_mode='Markdown')
-
-def main():
-    if not BOT_TOKEN:
-        print("Error: BOT_TOKEN is missing!")
-        return
+    # Bold style mein greeting message
+    # Prince ki jagah user ka apna naam aayega
+    greeting_text = f"Hey, **{user_name}** !"
     
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("codes", codes))
-    
-    print("Bot is starting...")
-    app.run_polling()
+    await update.message.reply_text(greeting_text, parse_mode='Markdown')
 
+# Main function mein handler add karein
 if __name__ == "__main__":
-    main()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    # Start command handler
+    app.add_handler(CommandHandler("start", start))
+    
+    # Admin signal handler (Jo pehle banaya tha)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_msg))
+    
+    app.run_polling()
     
