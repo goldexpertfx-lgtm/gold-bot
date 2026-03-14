@@ -6,20 +6,21 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 5072932186
-WHATSAPP_LINK = "https://whatsapp.com/channel/0029Vb5eRVjGzzKNnL7c050y"
+VIP_LINK = "https://www.brokeraccountguide.com"
 
 # ================= HANDLERS =================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     
-    # --- MESSAGE 1: Greeting (Bold Name) ---
+    # 1. Greeting Message (Bold Name)
     await update.message.reply_text(f"Hey, <b>{user_name}</b> !", parse_mode='HTML')
     
-    # --- MESSAGE 2: Join Whatsapp Message (Bold Text + Button) ---
-    # Saath mein niche bada 'GOLD SIGNALS' button bhi attach kar diya hai
-    join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=WHATSAPP_LINK)]]
+    # 2. Join Message (Bold Text + Inline Button)
+    # Is ke saath niche bada VIP wala button bhi activate ho jayega
+    join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=VIP_LINK)]]
     
+    # Bada button niche wala
     reply_kb = [["🎁 Claim Your FREE Premium Gold VIP Access Now"]]
     
     await update.message.reply_text(
@@ -28,9 +29,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(join_kb)
     )
     
-    # Niche wala bada button (Reply Keyboard) baghair kisi extra text ke bhejna
+    # Bada button show karne ke liye chota sa message
     await update.message.reply_text(
-        text=".", # Chota sa dot ya koi emoji de dein taaki button show ho jaye
+        text=".", 
         reply_markup=ReplyKeyboardMarkup(reply_keyboard=reply_kb, resize_keyboard=True)
     )
 
@@ -38,10 +39,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     text = update.message.text
 
-    # Jab koi "🎁 Claim Your FREE Premium Gold VIP Access Now" button press kare
+    # Jab koi VIP Access wala button dabaye
     if text == "🎁 Claim Your FREE Premium Gold VIP Access Now":
-        response_text = f"<b>{user_name}</b> Here is our Gold Signals link For You 🤗"
-        button = [[InlineKeyboardButton("JOIN NOW ✅", url=WHATSAPP_LINK)]]
+        # Name show hoga phir Membership wala text
+        response_text = f"<b>{user_name}</b> 🚀 Unlock Your FREE Premium Gold VIP Membership"
+        
+        # Button mein Bold text "JOIN NOW ✅"
+        button = [[InlineKeyboardButton("JOIN NOW ✅", url=VIP_LINK)]]
         
         await update.message.reply_text(
             text=response_text,
@@ -60,6 +64,6 @@ if __name__ == "__main__":
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        print("Bot is live...")
+        print("Bot is live with VIP features...")
         app.run_polling(drop_pending_updates=True)
         
