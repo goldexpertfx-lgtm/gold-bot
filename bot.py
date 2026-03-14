@@ -18,9 +18,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     greeting_text = f"Hey, <b>{user_name}</b> !"
     await update.message.reply_text(text=greeting_text, parse_mode='HTML')
     
-    # --- MESSAGE 2: Button Wala Message ---
-    # Is mein link text bold hai aur sath button bhi hai
-    button_text = f"<b>{whatsapp_link}</b>"
+    # --- MESSAGE 2: Join Text with Button ---
+    # Text bold hoga aur link sirf button mein hoga
+    join_text = "<b>Join Whatsapp Channel 👇👇</b>"
     
     keyboard = [
         [InlineKeyboardButton("JOIN NOW 👇✅", url=whatsapp_link)]
@@ -28,25 +28,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        text=button_text,
+        text=join_text,
         parse_mode='HTML',
-        reply_markup=reply_markup,
-        disable_web_page_preview=True # Preview off taaki button saaf dikhayi de
+        reply_markup=reply_markup
     )
 
 async def handle_admin_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Signal logic yahan add karein
+    # Signal logic aapka admin check ke saath yahan ayega
     pass
 
 if __name__ == "__main__":
     if not BOT_TOKEN:
-        print("Error: BOT_TOKEN is missing!")
+        print("Error: BOT_TOKEN environment variable is missing!")
     else:
         app = ApplicationBuilder().token(BOT_TOKEN).build()
+        
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_msg))
         
-        print("Bot is starting...")
-        # drop_pending_updates=True conflict error fix karne ke liye
+        print("Bot is live and running...")
+        # drop_pending_updates=True conflict errors ko avoid karne ke liye
         app.run_polling(drop_pending_updates=True)
         
