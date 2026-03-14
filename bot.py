@@ -20,7 +20,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Saath mein niche bada 'GOLD SIGNALS' button bhi attach kar diya hai
     join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=WHATSAPP_LINK)]]
     
-    reply_kb = [["GOLD SIGNALS ✅"]]
+    reply_kb = [["🎁 Claim Your FREE Premium Gold VIP Access Now"]]
     
     await update.message.reply_text(
         text="<b>Join Whatsapp Channel 👇👇</b>",
@@ -38,8 +38,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     text = update.message.text
 
-    # Jab koi "GOLD SIGNALS ✅" button press kare
-    if text == "GOLD SIGNALS ✅":
+    # Jab koi "🎁 Claim Your FREE Premium Gold VIP Access Now" button press kare
+    if text == "🎁 Claim Your FREE Premium Gold VIP Access Now":
         response_text = f"<b>{user_name}</b> Here is our Gold Signals link For You 🤗"
         button = [[InlineKeyboardButton("JOIN NOW ✅", url=WHATSAPP_LINK)]]
         
