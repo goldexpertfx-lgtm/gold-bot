@@ -11,32 +11,35 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # User ka naam nikalna
     user_name = update.effective_user.first_name
     
-    # Hey, simple rahega aur name Bold hoga
-    # Markdown (V1) use kar rahe hain jo '!' par error nahi deta
-    greeting_text = f"Hey, *{user_name}* !"
+    # WhatsApp Link
+    whatsapp_link = "https://whatsapp.com/channel/0029Vb5eRVjGzzKNnL7c050y"
     
-    try:
-        await update.message.reply_text(
-            text=greeting_text, 
-            parse_mode='Markdown'
-        )
-    except Exception as e:
-        # Agar koi masla ho to simple text bhej de
-        await update.message.reply_text(f"Hey, {user_name} !")
+    # Greeting aur Bold Link ka message
+    # <b> tag se text Bold ho jata hai
+    message_text = (
+        f"Hey, <b>{user_name}</b> !\n\n"
+        f"<b>{whatsapp_link}</b>"
+    )
+    
+    await update.message.reply_text(
+        text=message_text, 
+        parse_mode='HTML',
+        disable_web_page_preview=False  # Isse link ka preview bhi show hoga
+    )
 
 async def handle_admin_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Aapka signal logic yahan rahega
+    # Signal logic yahan rahega
     pass
 
 if __name__ == "__main__":
     if not BOT_TOKEN:
         print("Error: BOT_TOKEN is missing!")
     else:
+        # Conflict fix karne ke liye drop_pending_updates zaroori hai
         app = ApplicationBuilder().token(BOT_TOKEN).build()
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_msg))
         
         print("Bot is starting...")
-        # drop_pending_updates=True conflict error ko khatam karta hai
         app.run_polling(drop_pending_updates=True)
         
