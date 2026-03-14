@@ -16,13 +16,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 1. Greeting Message (Bold Name)
     await update.message.reply_text(f"Hey, <b>{user_name}</b> !", parse_mode='HTML')
     
-    # 2. Join Message (Bold Text + Button)
-    join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=VIP_LINK)]]
-    
-    # --- REPLY KEYBOARD (Niche wala bada button jaha message type karte hain) ---
-    # resize_keyboard=True se button ka size chota aur sahi ho jata hai
+    # 2. Bada Button (Niche wala) - Ise hum har message ke saath attach kar sakte hain
     reply_kb = [["🎁 Claim Your FREE Premium Gold VIP Access Now"]]
-    main_button = ReplyKeyboardMarkup(reply_kb, resize_keyboard=True)
+    # one_time_keyboard=False taaki button hamesha nazar aaye
+    main_button = ReplyKeyboardMarkup(reply_kb, resize_keyboard=True, one_time_keyboard=False)
+    
+    # 3. Join Message (Bold Text + Inline Button)
+    join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=VIP_LINK)]]
     
     await update.message.reply_text(
         text="<b>Join Whatsapp Channel 👇👇</b>",
@@ -30,9 +30,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(join_kb)
     )
     
-    # Button ko active karne ke liye ek chota message bhejna
+    # Button ko "Force Show" karne ke liye message
     await update.message.reply_text(
-        text="Click the button below to get started! 👇", 
+        text="👇 Click the button below to claim your access", 
         reply_markup=main_button
     )
 
@@ -40,12 +40,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     text = update.message.text
 
-    # Jab koi bada button dabaye
     if text == "🎁 Claim Your FREE Premium Gold VIP Access Now":
-        # Name show hoga (Bold) aur phir membership text
         response_text = f"<b>{user_name}</b> 🚀 Unlock Your FREE Premium Gold VIP Membership"
-        
-        # Link button ke sath
         button = [[InlineKeyboardButton("JOIN NOW ✅", url=VIP_LINK)]]
         
         await update.message.reply_text(
@@ -60,11 +56,12 @@ if __name__ == "__main__":
     if not BOT_TOKEN:
         print("Error: BOT_TOKEN is missing!")
     else:
+        # drop_pending_updates=True hamesha conflict khatam karne mein madad karta hai
         app = ApplicationBuilder().token(BOT_TOKEN).build()
         
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        print("Bot is running with bottom button...")
+        print("Bot is LIVE...")
         app.run_polling(drop_pending_updates=True)
         
