@@ -13,27 +13,30 @@ VIP_LINK = "https://www.brokeraccountguide.com"
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     
-    # 1. Greeting Message (Bold Name)
+    # 1. Pehla Message: Greeting (Bold Name)
     await update.message.reply_text(f"Hey, <b>{user_name}</b> !", parse_mode='HTML')
     
-    # 2. Bada Button (Niche wala) - Ise hum har message ke saath attach kar sakte hain
-    reply_kb = [["🎁 Claim Your FREE Premium Gold VIP Access Now"]]
-    # one_time_keyboard=False taaki button hamesha nazar aaye
-    main_button = ReplyKeyboardMarkup(reply_kb, resize_keyboard=True, one_time_keyboard=False)
-    
-    # 3. Join Message (Bold Text + Inline Button)
+    # 2. Dusra Message: Join Text + Inline Button + Bottom Bada Button
+    # Inline button (message ke niche)
     join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=VIP_LINK)]]
     
+    # Bottom Bada Button (keyboard ki jagah)
+    reply_kb = [["🎁 Claim Your FREE Premium Gold VIP Access Now"]]
+    bottom_button = ReplyKeyboardMarkup(reply_kb, resize_keyboard=True)
+    
+    # Dono buttons isi ek message ke saath bhej rahe hain
     await update.message.reply_text(
         text="<b>Join Whatsapp Channel 👇👇</b>",
         parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(join_kb)
+        reply_markup=InlineKeyboardMarkup(join_kb) # Inline button
     )
     
-    # Button ko "Force Show" karne ke liye message
+    # Bada button activate karne ke liye hum isi message ke reply_markup ko update karte hain
+    # Lekin Telegram ke mutabiq hum ek message mein dono keyboards nahi bhej sakte, 
+    # isliye hum dusre message ko khali space ke saath bhej rahe hain jo nazar nahi aayega.
     await update.message.reply_text(
-        text="👇 Click the button below to claim your access", 
-        reply_markup=main_button
+        text=".", 
+        reply_markup=bottom_button
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -56,9 +59,7 @@ if __name__ == "__main__":
     if not BOT_TOKEN:
         print("Error: BOT_TOKEN is missing!")
     else:
-        # drop_pending_updates=True hamesha conflict khatam karne mein madad karta hai
         app = ApplicationBuilder().token(BOT_TOKEN).build()
-        
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
