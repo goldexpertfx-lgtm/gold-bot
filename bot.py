@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 5072932186
-WHATSAPP_LINK = "https://whatsapp.com/channel/0029Vb5eRVjGzzKNnL7c050y"
+WHATSAPP_LINK = "https://t.me/addlist/Ao60BAC_TIU1ZDg8"
 WEBSITE_LINK = "https://www.brokeraccountguide.com"
 
 # ================= USER STORAGE =================
@@ -76,7 +76,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     join_kb = [[InlineKeyboardButton("JOIN NOW 👇✅", url=WHATSAPP_LINK)]]
 
     await update.message.reply_text(
-        text="<b>Join Whatsapp Channel 👇👇</b>",
+        text="<b>Join Our Channel For Daily 3-5 XAUUSD GOLD Signals 👇👇</b>",
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(join_kb)
     )
