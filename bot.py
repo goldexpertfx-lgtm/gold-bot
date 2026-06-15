@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 # ================= CONFIG =================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 5072932186
-WHATSAPP_LINK = "https://t.me/addlist/h8TIXckNSWdmZTBk"
+WHATSAPP_LINK = "https://t.me/addlist/bi3gLjRLzuk1Mzg0"
 WEBSITE_LINK = "https://www.brokeraccountguide.com"
 
 # ================= USER STORAGE =================
