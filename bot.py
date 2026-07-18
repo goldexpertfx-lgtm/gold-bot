@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 # ================= CONFIG =================
-BOT_TOKEN = os.getenv("7818601229:AAHzgOQYaAulQ_GsB8YdZbzjWLW_a48Y974")
+BOT_TOKEN = "7818601229:AAHzgOQYaAulQ_GsB8YdZbzjWLW_a48Y974"
 ADMIN_ID = 5072932186
 WHATSAPP_LINK = "https://t.me/addlist/h8TIXckNSWdmZTBk"
 WEBSITE_LINK = "https://www.brokeraccountguide.com"
@@ -143,3 +143,4 @@ if __name__ == "__main__":
 
         print("Bot is LIVE 🔥 (Admin Broadcast + Permanent Users)")
         app.run_polling(drop_pending_updates=True)
+        
